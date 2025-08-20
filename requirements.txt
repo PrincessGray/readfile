@@ -1,0 +1,4 @@
+camelot-py[cv]
+markitdown[all]
+mcp[cli]
+toml

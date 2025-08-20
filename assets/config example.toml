@@ -1,0 +1,7 @@
+llm_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+llm_api_key = "sk-xxx"
+llm_model = "qwen-vl-plus-latest"
+ocr_llm_model = "qwen-vl-ocr-latest"
+image_llm_model = "qwen-vl-plus-latest"
+audio_llm_model = "qwen-omni-turbo-latest"
+video_llm_model = "qwen-omni-turbo-latest"
