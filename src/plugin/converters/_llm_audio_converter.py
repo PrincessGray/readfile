@@ -63,7 +63,6 @@ class LLMAudioConverter(DocumentConverter):
     ) -> bool:
         if kwargs.get("process_type") != "audio":
             return False
-        
         mimetype = (stream_info.mimetype or "").lower()
         extension = (stream_info.extension or "").lower()
 
@@ -124,19 +123,16 @@ class LLMAudioConverter(DocumentConverter):
         # Transcribe
         if audio_format:
             llm_client = kwargs.get("llm_client")
-            llm_model = kwargs.get("audio_llm_model")
-            if llm_client is not None and llm_model is not None:
-                llm_description = self._get_llm_description(
-                    file_stream,
-                    stream_info,
-                    client=llm_client,
-                    model=llm_model,
-                    prompt=kwargs.get("llm_prompt"),
-                )
+            llm_model = kwargs.get("llm_model")
+            llm_description = self._get_llm_description(
+                file_stream,
+                stream_info,
+                client=llm_client,
+                model=llm_model,
+                prompt=kwargs.get("llm_prompt"),
+            )
 
-                if llm_description is not None:
-                    md_content += llm_description.strip() + "\n"
-
+            md_content += "\n# Audio Transcription:\n" + llm_description.strip() + "\n"
         # Return the result
         return DocumentConverterResult(markdown=md_content.strip())
 
@@ -194,11 +190,9 @@ class LLMAudioConverter(DocumentConverter):
         ]
 
         # 调用 Qwen API
-
         completion = client.chat.completions.create(
             model=model,
             messages=messages,
-            modalities=["text"],
             stream=True,
             stream_options={"include_usage": True},
         )

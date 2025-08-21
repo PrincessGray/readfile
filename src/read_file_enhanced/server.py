@@ -1,8 +1,10 @@
 import contextlib
 import enum
+from mmap import MADV_DONTDUMP
 import sys
 import os
 from collections.abc import AsyncIterator
+from token import OP
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 from starlette.applications import Starlette
@@ -25,16 +27,6 @@ import toml
 # Initialize FastMCP server for MarkItDown (SSE)
 mcp = FastMCP("file_reader_enhanced")
 
-class ProcessTypeEnum(str, enum.Enum):
-    audio = "audio"
-    video = "video"
-    image_ocr = "image_ocr"
-    image_description = "image_description"
-    others = "others"
-
-md = MarkItDown()
-register_converters(md)
-
 @mcp.tool()
 async def read_file_enhanced(
     uri: str = Field(
@@ -44,10 +36,10 @@ async def read_file_enhanced(
         description="Specific requirements for processing images, videos and audios. Provide",
         default=None
     ),
-    process_type: ProcessTypeEnum = Field(
-    description="The type of the file to process. Can be 'audio', 'video', 'image_ocr', 'image_description', 'others'",
-    default="others"
-),
+    process_type: str = Field(
+        description="The type of the file to process. Can be 'audio', 'video', 'image_ocr', 'image_description', 'others'",
+        default="others"
+    ),
 ) -> str:
     """
     This tool can process various file types including office documents, pdfs, images, audios, zip files, and wikipedia pages to markdown format.
@@ -61,19 +53,42 @@ async def read_file_enhanced(
     Returns:
         The file content converted to markdown format
     """
+    # 对 uri 做特殊处理
+    if uri.startswith("file://"):
+        # 去掉 file:// 前缀，并应用 root_path
+        file_path = uri.replace("file://", "")
+        file_path = apply_root_path(file_path)
+        uri = f"file://{file_path}"
+    elif not (uri.startswith("http://") or uri.startswith("https://") or uri.startswith("data:")):
+        # 如果不是标准协议，认为是本地路径
+        file_path = apply_root_path(uri)
+        uri = f"file://{file_path}"
+
     # Execute synchronous MarkItDown conversion in thread pool to avoid blocking
     if uri.startswith("file://") and uri.endswith(".pdf"):
         markdown = mineru_pdf_to_markdown(uri.replace("file://", ""))
     else:
-        markdown = await asyncio.to_thread(
-            lambda: MarkItDown(
+        md = MarkItDown(
                     enable_plugins=check_plugins_enabled(),
+        )
+        register_converters(md)
+        markdown = await asyncio.to_thread(
+        lambda: md.convert_uri(uri, process_type=process_type,                    
                     llm_prompt=llm_process_prompt,
-                    process_type = process_type.value,
-                    **llm_config,
-                ).convert_uri(uri).markdown
+                    llm_client=OpenAI(
+                        base_url=llm_config[process_type]["llm_base_url"],
+                        api_key=llm_config[process_type]["llm_api_key"],
+                    )).markdown
         )
     return markdown
+
+
+def apply_root_path(uri: str) -> str:
+    root_path = os.getenv("ROOT_PATH", "")
+    if root_path:
+        # 去掉 uri 前面的斜杠，防止 os.path.join 忽略 root_path
+        return os.path.join(root_path, uri.lstrip("/"))
+    return uri
 
 def check_plugins_enabled() -> bool:
     return os.getenv("MARKITDOWN_ENABLE_PLUGINS", "false").strip().lower() in (
@@ -145,17 +160,35 @@ def mineru_pdf_to_markdown(file_path: str) -> str:
 def load_llm_config(config_path):
     import toml
     config = toml.load(config_path)
-    return {
-        "llm_client": OpenAI(
-            base_url=config.get("llm_base_url"),
-            api_key=config.get("llm_api_key"),
-        ),
-        "llm_model": config.get("llm_model") or "qwen-vl-plus-latest",
-        "ocr_llm_model": config.get("ocr_llm_model") or "qwen-vl-ocr-latest",
-        "image_llm_model": config.get("image_llm_model") or "qwen-vl-plus-latest",
-        "audio_llm_model": config.get("audio_llm_model") or "qwen-omni-turbo-latest",
-        "video_llm_model": config.get("video_llm_model") or "qwen-omni-turbo-latest",
+    llm_config = {
+        "image_description":{
+            "llm_model": config.get("image_llm_model") or "qwen-vl-plus-latest",
+            "llm_base_url": config.get("image_llm_base_url") or config.get("llm_base_url") or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "llm_api_key": config.get("image_llm_api_key") or config.get("llm_api_key"),
+        },
+        "image_ocr":{
+            "llm_model": config.get("ocr_llm_model") or "qwen-vl-ocr-latest",
+            "llm_base_url": config.get("ocr_llm_base_url") or config.get("llm_base_url") or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "llm_api_key": config.get("ocr_llm_api_key") or config.get("llm_api_key"),
+        },
+        "audio":{
+            "llm_model": config.get("audio_llm_model") or "qwen-omni-turbo-latest",
+            "llm_base_url": config.get("audio_llm_base_url") or config.get("llm_base_url") or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "llm_api_key": config.get("audio_llm_api_key") or config.get("llm_api_key"),
+        },
+        "video":{
+            "llm_model": config.get("video_llm_model") or "qwen-omni-turbo-latest",
+            "llm_base_url": config.get("video_llm_base_url") or config.get("llm_base_url") or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "llm_api_key": config.get("video_llm_api_key") or config.get("llm_api_key"),
+        },
+        "others":{
+            "llm_model": config.get("llm_model") or "qwen-omni-turbo-latest",
+            "llm_base_url": config.get("llm_base_url") or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "llm_api_key": config.get("llm_api_key"),
+        }
     }
+    print(llm_config)
+    return llm_config
 
 # Main entry point
 def main():
@@ -183,11 +216,18 @@ def main():
     )
     parser.add_argument(
         "--config",
-        default="assets/config.toml",
+        default="/home/gongziqin/mcp_servers/feature-server/mcp_servers/read_file_enhanced/assets/config.toml",
         help="Path to config.toml file (default: assets/config.toml)",
+    )
+    parser.add_argument(
+        "--root_path",
+        default="/data",
+        help="Root path to apply to the URI (default: '')",
     )
 
     args = parser.parse_args()
+
+    os.environ["ROOT_PATH"] = args.root_path
 
     global llm_config
     llm_config = load_llm_config(args.config)

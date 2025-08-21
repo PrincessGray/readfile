@@ -102,24 +102,16 @@ class LLMImageConverter(DocumentConverter):
 
         # Try describing the image with GPT
         llm_client = kwargs.get("llm_client")
-        match kwargs.get("process_type"):
-            case "image_description":
-                llm_model = kwargs.get("image_llm_model")
-            case "image_ocr":
-                llm_model = kwargs.get("ocr_llm_model")
-            case _:
-                llm_model = kwargs.get("llm_model")
-        if llm_client is not None and llm_model is not None:
-            llm_description = self._get_llm_description(
-                file_stream,
-                stream_info,
-                client=llm_client,
-                model=llm_model,
-                prompt=kwargs.get("llm_prompt"),
-            )
+        llm_model = kwargs.get("llm_model")
+        llm_description = self._get_llm_description(
+            file_stream,
+            stream_info,
+            client=llm_client,
+            model=llm_model,
+            prompt=kwargs.get("llm_prompt"),
+        )
 
-            if llm_description is not None:
-                md_content += "\n# Description:\n" + llm_description.strip() + "\n"
+        md_content += "\n# Description:\n" + llm_description.strip() + "\n"
 
         return DocumentConverterResult(
             markdown=md_content,
@@ -136,6 +128,7 @@ class LLMImageConverter(DocumentConverter):
     ) -> Union[None, str]:
         if prompt is None or prompt.strip() == "":
             prompt = "Write a detailed caption for this image."
+
 
         # Get the content type
         content_type = stream_info.mimetype

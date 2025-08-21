@@ -95,17 +95,16 @@ class LLMVideoConverter(DocumentConverter):
 
         # LLM analysis
         llm_client = kwargs.get("llm_client")
-        llm_model = kwargs.get("video_llm_model")
-        if llm_client is not None and llm_model is not None:
-            llm_description = self._get_llm_description(
-                file_stream,
-                stream_info,
-                client=llm_client,
-                model=llm_model,
-                prompt=kwargs.get("llm_prompt"),
-            )
-            if llm_description is not None:
-                md_content += "\n# Description:\n" + llm_description.strip() + "\n"
+        llm_model = kwargs.get("llm_model")
+        llm_description = self._get_llm_description(
+            file_stream,
+            stream_info,
+            client=llm_client,
+            model=llm_model,
+            prompt=kwargs.get("llm_prompt"),
+        )
+
+        md_content += "\n# Description:\n" + llm_description.strip() + "\n"
 
         return DocumentConverterResult(markdown=md_content.strip())
 
@@ -165,7 +164,6 @@ class LLMVideoConverter(DocumentConverter):
         completion = client.chat.completions.create(
             model=model,
             messages=messages,
-            modalities=["text"],
             stream=True,
             stream_options={"include_usage": True},
         )

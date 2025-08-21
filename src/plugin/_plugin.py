@@ -12,8 +12,6 @@ __plugin_interface_version__ = (
     1  # The version of the plugin interface that this plugin uses
 )
 
-
-
 def register_converters(markitdown: MarkItDown, **kwargs):
     """
     Called during construction of MarkItDown instances to register converters provided by plugins.
@@ -23,11 +21,9 @@ def register_converters(markitdown: MarkItDown, **kwargs):
     for c in list(markitdown._converters):
         if isinstance(getattr(c, "converter", None), AudioConverter):
             markitdown._converters.remove(c)
-            print("remove AudioConverter")
     for c in list(markitdown._converters):
         if isinstance(getattr(c, "converter", None), ImageConverter):
             markitdown._converters.remove(c)
-            print("remove ImageConverter")
 
     markitdown.register_converter(LLMAudioConverter())
     markitdown.register_converter(LLMVideoConverter())
