@@ -75,10 +75,11 @@ async def read_file_enhanced(
         markdown = await asyncio.to_thread(
         lambda: md.convert_uri(uri, process_type=process_type,                    
                     llm_prompt=llm_process_prompt,
+                    llm_model=llm_config[process_type]["llm_model"],
                     llm_client=OpenAI(
                         base_url=llm_config[process_type]["llm_base_url"],
                         api_key=llm_config[process_type]["llm_api_key"],
-                    )).markdown
+                    )).markdown,
         )
     return markdown
 
