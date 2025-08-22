@@ -33,7 +33,7 @@ async def read_file_enhanced(
         description="The URI of the file to convert to markdown. Supports http://, https://, file://, or data: schemes. Examples: 'file:///path/to/document.pdf', 'https://example.com/image.jpg'",
     ),
     llm_process_prompt: Optional[str] = Field(
-        description="Specific requirements for processing images, videos and audios. Provide",
+        description="Specific requirements for processing images, videos and audios. Provide a detailed prompt for the LLM to summarize the file.",
         default=None
     ),
     process_type: str = Field(
@@ -42,17 +42,42 @@ async def read_file_enhanced(
     ),
 ) -> str:
     """
-    This tool can process various file types including office documents, pdfs, images, audios, zip files, and wikipedia pages to markdown format.
-    For images, it uses AI to analyze and describe the content based on the provided requirements.
-    Use this tool to read all kinds of file or web resource.
-    
-    Args:
-        uri: The location of the file to process
-        llm_process_prompt: Instructions for how to handle images, videos and audios in the content
-        
-    Returns:
-        The file content converted to markdown format
-    """
+A comprehensive file processing tool that converts various file formats into structured markdown. 
+Supports office documents, PDFs, images, audio, video, archives, and web resources with AI-powered analysis.
+
+## Supported Formats:
+
+### 📄 Documents
+- **Office**: Word (.docx), Excel (.xlsx), PowerPoint (.pptx)
+- **PDF**: Text extraction, table recognition, image analysis
+- **Images**: OCR text extraction and AI content description
+- **Media**: Audio transcription, video content analysis
+- **Archives**: ZIP, RAR content extraction
+- **Web**: Wikipedia pages, HTML conversion
+
+## Key Features:
+
+### Smart Processing
+- **URI Support**: file:// and https:// schemes
+- **AI Enhancement**: Custom prompts for image/video/audio analysis
+- **Process Types**: image_ocr, image_description, audio, video, others
+- **Output**: Structured markdown with preserved formatting
+
+### Use Cases
+- Document management and conversion
+- Content analysis and summarization
+- Accessibility improvements
+- Research and data extraction
+- Automated content processing
+
+## Parameters:
+- **uri**: File location (local path or URL)
+- **llm_process_prompt**: Custom instructions for AI analysis
+- **process_type**: Processing mode for optimal results
+- **Returns**: Clean markdown content ready for use
+
+This tool provides a unified interface for processing any file type, making complex document conversion simple and accessible.
+"""
     # 对 uri 做特殊处理
     if uri.startswith("file://"):
         # 去掉 file:// 前缀，并应用 root_path
@@ -86,9 +111,11 @@ async def read_file_enhanced(
 
 def apply_root_path(uri: str) -> str:
     root_path = os.getenv("ROOT_PATH", "")
-    if root_path:
-        # 去掉 uri 前面的斜杠，防止 os.path.join 忽略 root_path
-        return os.path.join(root_path, uri.lstrip("/"))
+    # 仅当原路径不存在时，才应用 root_path
+    if not os.path.exists(uri):
+        if root_path:
+            # 去掉 uri 前面的斜杠，防止 os.path.join 忽略 root_path
+            return os.path.join(root_path, uri.lstrip("/"))
     return uri
 
 def check_plugins_enabled() -> bool:
@@ -97,7 +124,6 @@ def check_plugins_enabled() -> bool:
         "1",
         "yes",
     )
-
 
 def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlette:
     sse = SseServerTransport("/messages/")
@@ -222,7 +248,6 @@ def main():
     )
     parser.add_argument(
         "--root_path",
-        default="/data",
         help="Root path to apply to the URI (default: '')",
     )
 

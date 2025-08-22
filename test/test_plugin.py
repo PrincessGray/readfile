@@ -7,7 +7,7 @@ from openai import OpenAI
 
 md = MarkItDown()
 register_converters(md)
-print(md.convert_uri("file:///home/gongziqin/mcp_servers/feature-server/data/GAIA/2023/validation/6359a0b1-8f7b-499b-9336-840f9ab90688.png", process_type="image_description",llm_client=OpenAI(
+print(md.convert_uri("file:///home/gongziqin/mcp-dockers/feature-server/data/GAIA/2023/validation/6359a0b1-8f7b-499b-9336-840f9ab90688.png", process_type="image_description",llm_client=OpenAI(
                         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
                         api_key="sk-0237d0b3d163451586a7e01394d995e5",
                     )
